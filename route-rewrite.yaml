@@ -18,6 +18,28 @@ spec:
         type: PathPrefix
         value: /gateway/prefix/api
     filters:
+    - type: CORS
+      cors:
+        allowOrigins:
+        - "*"
+        allowMethods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+        allowHeaders:
+        - "authorization"
+        - "content-type"
+        - "x-debug"
+        - "x-custom-client"
+        - "x-custom-header"
+        - "x-requested-with"
+        exposeHeaders:
+        - "content-length"
+        - "x-request-id"
+        maxAge: 86400s
     - type: URLRewrite
       urlRewrite:
         path:

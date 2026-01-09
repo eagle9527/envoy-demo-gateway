@@ -1,10 +1,9 @@
-# 场景 3: 默认路由 & CORS
-# 转发所有其他请求到后端。
-# 这里的后端 Gin 应用已经配置了 CORS 中间件，所以可以处理跨域请求。
+# 场景 3: 默认路由（禁止所有跨域）
+# 转发所有其他请求到后端，但拒绝任何跨域请求
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: demo-route-default
+  name: pure-default-route
   namespace: default
 spec:
   parentRefs:
@@ -13,9 +12,9 @@ spec:
   - "demo.example.com"
   rules:
   - matches:
-    - path:
-        type: PathPrefix
-        value: /
+      - path:
+          type: PathPrefix
+          value: /
     backendRefs:
-    - name: demo-app
-      port: 80
+      - name: demo-app  # 你的 Gin 应用 Service
+        port: 80

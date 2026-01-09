@@ -1,23 +1,20 @@
-# 场景 2: 自定义 Header 路由
-# 只有包含 Header "X-Debug: true" 的请求才会进入这个规则
+# 场景 4: 默认路由（加 CORS）
+# 用于模拟“入口层允许跨域”，并通过单独的 Host 区分是否开启 CORS。
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: demo-route-header
+  name: demo-route-default-cors
   namespace: default
 spec:
   parentRefs:
   - name: eg
   hostnames:
-  - "demo.example.com"
+  - "cors.demo.example.com"
   rules:
   - matches:
-    - headers:
-      - name: X-Debug
-        value: "true"
-      path:
+    - path:
         type: PathPrefix
-        value: /debug
+        value: /
     filters:
     - type: CORS
       cors:

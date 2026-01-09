@@ -15,9 +15,6 @@ func main() {
 
 	r := gin.Default()
 
-	// 1. CORS 中间件 - 验证跨域
-	r.Use(CorsMiddleware())
-
 	// 2. 全局请求日志中间件 - 方便在 Pod 日志中查看网关转发过来的真实信息
 	r.Use(func(c *gin.Context) {
 		// 打印 Host, Method, Path
@@ -92,27 +89,5 @@ func main() {
 	fmt.Printf("Server starting on port %s...\n", port)
 	if err := r.Run(":" + port); err != nil {
 		panic(err)
-	}
-}
-
-// CorsMiddleware 处理跨域请求
-func CorsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
-		if origin != "" {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", origin) // 允许请求来源
-			c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, UPDATE")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Custom-Header")
-			c.Writer.Header().Set("Access-Control-Expose-Headers", "Content-Length")
-			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		}
-
-		// 处理 OPTIONS 请求
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
 	}
 }

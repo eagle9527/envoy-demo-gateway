@@ -1,0 +1,30 @@
+apiVersion: gateway.envoyproxy.io/v1
+kind: TrafficPolicy
+metadata:
+  name: forbid-cors-options
+  namespace: default
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: pure-default-route
+  typedExtensionConfig:
+    name: envoy.filters.http.lua
+    typedConfig:
+      "@type": "type.googleapis.com/udpa.type.v1.TypedStruct"
+      typeUrl: "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+      value:
+        inlineCode: |
+          function envoy_on_request(request_handle)
+            -- 拦截带 Origin 头的 OPTIONS 跨域预检请求
+            local method = request_handle:headers():get(":method")
+            local origin = request_handle:headers():get("Origin")
+            if method == "OPTIONS" and origin ~= nil then
+              -- 强制返回 403 并添加禁止跨域的提示头
+              request_handle:respond({
+                [":status"] = "403",
+                ["X-Error"] = "CORS requests are forbidden",
+                ["Content-Type"] = "text/plain"
+              }, "CORS Forbidden")
+            end
+          end

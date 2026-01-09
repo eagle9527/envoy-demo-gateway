@@ -16,7 +16,8 @@
 *   `k8s-app.yaml`: 应用的 Kubernetes Deployment 和 Service 定义。
 *   `route-rewrite.yaml`: 场景 1 - 路径重写测试用例。
 *   `route-header.yaml`: 场景 2 - 自定义 Header 路由测试用例。
-*   `route-default.yaml`: 场景 3 - 默认路由及 CORS 测试用例。
+*   `route-default.yaml`: 场景 3 - 默认路由（不加 CORS）测试用例。
+*   `route-default-cors.yaml`: 场景 4 - 默认路由（加 CORS）测试用例。
 
 ## 快速开始
 
@@ -29,7 +30,7 @@
 docker build -t demo-app:latest .
 
 # 如果使用 Kind，加载镜像到集群
-# kind load docker-image demo-app:latest
+# kind load docker-image demo-app:latest -n kind1
 ```
 
 部署应用到 Kubernetes：
@@ -47,9 +48,10 @@ kubectl apply -f k8s-app.yaml
 kubectl apply -f route-rewrite.yaml
 kubectl apply -f route-header.yaml
 kubectl apply -f route-default.yaml
+kubectl apply -f route-default-cors.yaml
 ```
 
-**注意**: 所有测试用例中定义了 hostname 为 `demo.example.com`。你需要确保测试时使用该 Host，或者修改本地 `/etc/hosts` 指向网关 IP。
+**注意**: 默认路由分成了两个 Host：`demo.example.com`（不加 CORS）和 `cors.demo.example.com`（加 CORS）。你需要确保测试时使用对应 Host，或者修改本地 `/etc/hosts` 指向网关 IP。
 
 ---
 
@@ -90,17 +92,34 @@ curl -v -H "Host: demo.example.com" \
     *   响应 JSON 中应包含你发送的 `"X-Custom-Client": "my-client"`。
     *   同时可以查看到 Envoy 自动注入的 `X-Forwarded-For` 等头信息。
 
-### 场景 3: 验证跨域 (CORS) 与 默认路由
+### 场景 3: 默认路由不返回跨域头
 
 *   **配置文件**: `route-default.yaml`
-*   **配置**: 匹配根路径 `/`，并由后端应用处理跨域。
+*   **配置**: 不配置入口层 CORS；响应里不应该出现任何 `Access-Control-*` 头。
+*   **测试命令**:
+
+```bash
+curl -v -H "Host: demo.example.com" \
+  -H "Origin: http://frontend.test.com" \
+  http://<GATEWAY_IP>/api/users
+```
+
+*   **预期结果**:
+    *   状态码: `200 OK`
+    *   响应头里**不包含** `Access-Control-Allow-Origin` 等 CORS 相关 Header
+
+### 场景 4: 默认路由允许跨域（入口层处理）
+
+*   **配置文件**: `route-default-cors.yaml`
+*   **配置**: CORS 在入口层通过 HTTPRoute 的 `CORS` filter 处理；后端应用不返回任何 `Access-Control-*` 头。
 *   **测试命令**: 发送一个预检请求 (Preflight)。
 
 ```bash
 curl -v -X OPTIONS \
-  -H "Host: demo.example.com" \
+  -H "Host: cors.demo.example.com" \
   -H "Origin: http://frontend.test.com" \
   -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: x-custom-client,x-debug,content-type" \
   http://<GATEWAY_IP>/api/users
 ```
 
@@ -109,6 +128,14 @@ curl -v -X OPTIONS \
     *   响应头包含:
         *   `Access-Control-Allow-Origin: http://frontend.test.com`
         *   `Access-Control-Allow-Methods: ...`
+
+再验证一次“实际请求”的响应头是否也包含 `Access-Control-Allow-Origin`：
+
+```bash
+curl -v -H "Host: cors.demo.example.com" \
+  -H "Origin: http://frontend.test.com" \
+  http://<GATEWAY_IP>/api/users
+```
 
 ## 查看日志
 
